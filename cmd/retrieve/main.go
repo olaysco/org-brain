@@ -14,7 +14,53 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/bedrockagentruntime"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockagentruntime/document"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockagentruntime/types"
+	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
+	runtimeTypes "github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types"
 )
+
+type retriever struct {
+	cfg              *aws.Config
+	kbID             string
+	mode             string
+	group            string
+	query            string
+	searchType       string
+	guardRailID      string
+	guardRailVersion string
+
+	runtimeClient       *bedrockruntime.Client
+	agentrRuntimeClient *bedrockagentruntime.Client
+}
+
+type Evidence struct {
+	Text     string         `json:"text"`
+	Source   string         `json:"source"`
+	Score    *float64       `json:"score"`
+	Metadata map[string]any `json:"metadata"`
+}
+
+func NewRetriever(ctx context.Context, kbID, group, query, searchType, guardRailID, guardRailVersion, mode string) (*retriever, error) {
+	cfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		return &retriever{}, fmt.Errorf("load AWS configuration: %w", err)
+	}
+
+	runtimClient := bedrockruntime.NewFromConfig(cfg)
+	agentrRuntimeClient := bedrockagentruntime.NewFromConfig(cfg)
+
+	return &retriever{
+		cfg:                 &cfg,
+		kbID:                kbID,
+		mode:                mode,
+		group:               group,
+		query:               query,
+		searchType:          searchType,
+		guardRailID:         guardRailID,
+		guardRailVersion:    guardRailVersion,
+		runtimeClient:       runtimClient,
+		agentrRuntimeClient: agentrRuntimeClient,
+	}, nil
+}
 
 func main() {
 	if err := run(); err != nil {
@@ -28,6 +74,8 @@ func run() error {
 	query := flag.String("query", "", "Search question")
 	group := flag.String("group", "", "Simulated user group")
 	searchType := flag.String("search", "SEMANTIC", "SEMANTIC or HYBRID")
+	guardrailID := flag.String("guardrail", "", "Guardrail ID")
+	guardrailVersion := flag.String("guardrail-version", "1", "Guardrail version")
 	flag.Parse()
 
 	if *kbID == "" || strings.TrimSpace(*query) == "" {
@@ -39,14 +87,52 @@ func run() error {
 		return fmt.Errorf("search must be SEMANTIC or HYBRID")
 	}
 
+	if *guardrailID == "" || *guardrailVersion == "" {
+		return fmt.Errorf("guardrail and guardrail-version are required")
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	cfg, err := config.LoadDefaultConfig(ctx)
+	retriever, err := NewRetriever(ctx, *kbID, *group, *query, *searchType, *guardrailID, *guardrailVersion, mode)
 	if err != nil {
 		return fmt.Errorf("load AWS configuration: %w", err)
 	}
 
+	return retriever.handleRetireveAndApplyGuardrail(ctx)
+}
+
+func (r *retriever) handleRetireveAndApplyGuardrail(ctx context.Context) error {
+	check, err := r.runtimeClient.ApplyGuardrail(
+		ctx,
+		&bedrockruntime.ApplyGuardrailInput{
+			GuardrailIdentifier: aws.String(r.guardRailID),
+			GuardrailVersion:    aws.String(r.guardRailVersion),
+			Source:              runtimeTypes.GuardrailContentSourceInput,
+			Content: []runtimeTypes.GuardrailContentBlock{
+				&runtimeTypes.GuardrailContentBlockMemberText{
+					Value: runtimeTypes.GuardrailTextBlock{
+						Text: aws.String(strings.TrimSpace(r.query)),
+					},
+				},
+			},
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("check input guardrail: %w", err)
+	}
+
+	switch check.Action {
+	case runtimeTypes.GuardrailActionNone:
+		return r.handleRetrieval(ctx)
+	case runtimeTypes.GuardrailActionGuardrailIntervened:
+		return fmt.Errorf("request blocked by the guardrail policy")
+	default:
+		return fmt.Errorf("guardrail returned an unexpected action")
+	}
+}
+
+func (r *retriever) handleRetrieval(ctx context.Context) error {
 	var accessFilter types.RetrievalFilter = &types.RetrievalFilterMemberEquals{
 		Value: types.FilterAttribute{
 			Key:   aws.String("unrestricted"),
@@ -54,7 +140,7 @@ func run() error {
 		},
 	}
 
-	if value := strings.TrimSpace(*group); value != "" {
+	if value := strings.TrimSpace(r.group); value != "" {
 		accessFilter = &types.RetrievalFilterMemberOrAll{
 			Value: []types.RetrievalFilter{
 				accessFilter,
@@ -68,18 +154,16 @@ func run() error {
 		}
 	}
 
-	client := bedrockagentruntime.NewFromConfig(cfg)
-
-	response, err := client.Retrieve(ctx, &bedrockagentruntime.RetrieveInput{
-		KnowledgeBaseId: aws.String(*kbID),
+	response, err := r.agentrRuntimeClient.Retrieve(ctx, &bedrockagentruntime.RetrieveInput{
+		KnowledgeBaseId: aws.String(r.kbID),
 		RetrievalQuery: &types.KnowledgeBaseQuery{
-			Text: aws.String(strings.TrimSpace(*query)),
+			Text: aws.String(strings.TrimSpace(r.query)),
 		},
 		RetrievalConfiguration: &types.KnowledgeBaseRetrievalConfiguration{
 			VectorSearchConfiguration: &types.KnowledgeBaseVectorSearchConfiguration{
 				Filter:             accessFilter,
 				NumberOfResults:    aws.Int32(5),
-				OverrideSearchType: types.SearchType(mode),
+				OverrideSearchType: types.SearchType(r.mode),
 			},
 		},
 	})
@@ -87,10 +171,38 @@ func run() error {
 		return fmt.Errorf("retrieve evidence: %w", err)
 	}
 
+	evidence := make([]Evidence, 0, len(response.RetrievalResults))
+	for _, result := range response.RetrievalResults {
+		metadata := make(map[string]any)
+
+		for key, value := range result.Metadata {
+			var decoded any
+			if err := value.UnmarshalSmithyDocument(&decoded); err != nil {
+				return fmt.Errorf("decode metadata %q: %w", key, err)
+			}
+			metadata[key] = decoded
+		}
+
+		item := Evidence{
+			Score:    result.Score,
+			Metadata: metadata,
+		}
+
+		if result.Content != nil {
+			item.Text = aws.ToString(result.Content.Text)
+		}
+
+		if result.Location != nil && result.Location.S3Location != nil {
+			item.Source = aws.ToString(result.Location.S3Location.Uri)
+		}
+
+		evidence = append(evidence, item)
+	}
+
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 
-	if err := encoder.Encode(response.RetrievalResults); err != nil {
+	if err := encoder.Encode(evidence); err != nil {
 		return fmt.Errorf("encode evidence: %w", err)
 	}
 
