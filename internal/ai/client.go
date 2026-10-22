@@ -3,6 +3,7 @@ package ai
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -30,15 +31,42 @@ func (c Client) Check(ctx context.Context, text string, source types.GuardrailCo
 	if err != nil {
 		return fmt.Errorf("check content: %w", err)
 	}
-	if result == nil || result.Action != types.GuardrailActionNone {
-		return fmt.Errorf("content blocked or guardrail action unavailable")
+	if result == nil {
+		return fmt.Errorf("guardrail returned no response")
+	}
+	for _, assessment := range result.Assessments {
+		if policy := assessment.SensitiveInformationPolicy; policy != nil {
+			for _, entity := range policy.PiiEntities {
+				fmt.Fprintf(
+					os.Stderr,
+					"Sensitive information: type=%s action=%s\n",
+					entity.Type,
+					entity.Action,
+				)
+			}
+		}
+
+		if policy := assessment.ContentPolicy; policy != nil {
+			for _, filter := range policy.Filters {
+				fmt.Fprintf(
+					os.Stderr,
+					"Content filter: type=%s action=%s\n",
+					filter.Type,
+					filter.Action,
+				)
+			}
+		}
+	}
+
+	if result.Action != types.GuardrailActionNone {
+		return fmt.Errorf("guardrail action: %s", result.Action)
 	}
 	return nil
 }
 
 func (c Client) Generate(ctx context.Context, instruction, input string, maxTokens int32) (string, error) {
 	if err := c.Check(ctx, input, types.GuardrailContentSourceInput); err != nil {
-		return "", err
+		return "", fmt.Errorf("generation input check: %w", err)
 	}
 	response, err := c.Runtime.Converse(ctx, &bedrockruntime.ConverseInput{
 		ModelId:         aws.String(c.ModelID),
@@ -70,7 +98,7 @@ func (c Client) Generate(ctx context.Context, instruction, input string, maxToke
 		return "", fmt.Errorf("model returned an empty response")
 	}
 	if err := c.Check(ctx, text, types.GuardrailContentSourceOutput); err != nil {
-		return "", err
+		return "", fmt.Errorf("generation output check: %w", err)
 	}
 	return text, nil
 }

@@ -1,0 +1,10 @@
+{
+  "metadataAttributes": {
+    "document_id": "product-sso-001",
+    "version": "1",
+    "status": "approved",
+    "owner": "sales",
+    "unrestricted": false,
+    "allowed_groups": ["sales"]
+  }
+}

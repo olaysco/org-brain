@@ -33,6 +33,14 @@ func Extract(ctx context.Context, generator Generator, text string) (Extraction,
 }
 
 func DecodeExtraction(output, source string) (Extraction, error) {
+	output = strings.TrimSpace(output)
+	if strings.HasPrefix(output, "```") {
+		_, body, ok := strings.Cut(output, "\n")
+		if !ok {
+			return Extraction{}, fmt.Errorf("extraction has an invalid JSON fence")
+		}
+		output = strings.TrimSpace(strings.TrimSuffix(body, "```"))
+	}
 	var extraction Extraction
 	decoder := json.NewDecoder(strings.NewReader(output))
 	decoder.DisallowUnknownFields()
