@@ -4,7 +4,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
+	"path"
+	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -14,11 +19,11 @@ import (
 func main() {
 	bucket := flag.String("bucket", "", "Destination bucket")
 	filePath := flag.String("file", "", "Local file path")
-	key := flag.String("key", "", "Destination object key")
+	folderPath := flag.String("folder", "", "Local folder path")
 	flag.Parse()
 
-	if *bucket == "" || *filePath == "" || *key == "" {
-		fmt.Fprintln(os.Stderr, "bucket, file, and key are required")
+	if *bucket == "" || (*filePath == "") == (*folderPath == "") {
+		fmt.Fprintln(os.Stderr, "bucket is required; specify either file or folder")
 		os.Exit(1)
 	}
 
@@ -30,21 +35,65 @@ func main() {
 	}
 
 	client := s3.NewFromConfig(cfg)
-	f, err := os.Open(*filePath)
+
+	uploadSingleFile := func(localPath string) error {
+		objectKey := path.Join("sources", strings.TrimPrefix(filepath.ToSlash(filepath.Clean(localPath)), "dataset/"))
+		f, err := os.Open(localPath)
+		if err != nil {
+			return fmt.Errorf("open file %q: %w", localPath, err)
+		}
+		defer f.Close()
+
+		_, err = client.PutObject(ctx, &s3.PutObjectInput{
+			Bucket: aws.String(*bucket),
+			Key:    aws.String(objectKey),
+			Body:   f,
+		})
+
+		if err != nil {
+			return fmt.Errorf("upload %q to %q: %w", localPath, objectKey, err)
+		}
+
+		return nil
+
+	}
+
+	// upload single file
+	if *folderPath == "" {
+		err = uploadSingleFile(*filePath)
+		if err != nil {
+			fmt.Fprint(os.Stderr, err)
+			os.Exit(1)
+		}
+
+		return
+	}
+
+	folderInfo, err := os.Stat(*folderPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "unable to open file %q : %v \n", *filePath, err)
+		fmt.Fprintln(os.Stderr, "read folder:", err)
 		os.Exit(1)
 	}
-	defer f.Close()
+	if !folderInfo.IsDir() {
+		fmt.Fprintln(os.Stderr, "folder must identify a directory")
+		os.Exit(1)
+	}
 
-	_, err = client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket: aws.String(*bucket),
-		Key:    aws.String(*key),
-		Body:   f,
+	err = filepath.WalkDir(*folderPath, func(localPath string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		name := strings.ToLower(entry.Name())
+		if !slices.Contains([]string{".csv", ".md", ".txt", ".json"}, filepath.Ext(name)) {
+			return nil
+		}
+		return uploadSingleFile(localPath)
 	})
-
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "unable to upload file:", err)
+		fmt.Fprintln(os.Stderr, "upload folder:", err)
 		os.Exit(1)
 	}
 }

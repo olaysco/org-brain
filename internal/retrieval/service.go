@@ -33,6 +33,7 @@ type Document struct {
 type Evidence struct {
 	Documents          []Document       `json:"documents"`
 	RelationshipClaims []graph.Evidence `json:"relationship_claims"`
+	GraphScope         string           `json:"graph_scope,omitempty"`
 }
 
 type Service struct {
@@ -103,6 +104,11 @@ func (s Service) Search(ctx context.Context, query string) (Evidence, error) {
 		if err != nil {
 			return Evidence{}, err
 		}
+		evidence.RelationshipClaims, err = graph.Expand(ctx, s.Graph, evidence.RelationshipClaims, s.Groups, s.AllowedSources)
+		if err != nil {
+			return Evidence{}, err
+		}
+		evidence.GraphScope = "Related evidence from active permitted sources, within three relationship steps of retrieved claims. Results do not establish complete shipment coverage or current operating status."
 	}
 	data, err := json.Marshal(evidence)
 	if err != nil {
@@ -131,14 +137,9 @@ func (s Service) accessFilter() types.RetrievalFilter {
 		access = &types.RetrievalFilterMemberOrAll{Value: choices}
 	}
 	if len(s.AllowedSources) > 0 {
-		sourceChoices := make([]types.RetrievalFilter, 0, len(s.AllowedSources))
-		for _, uri := range s.AllowedSources {
-			sourceChoices = append(sourceChoices, &types.RetrievalFilterMemberEquals{Value: types.FilterAttribute{Key: aws.String("x-amz-bedrock-kb-source-uri"), Value: document.NewLazyDocument(uri)}})
-		}
-		var scope types.RetrievalFilter = sourceChoices[0]
-		if len(sourceChoices) > 1 {
-			scope = &types.RetrievalFilterMemberOrAll{Value: sourceChoices}
-		}
+		var scope types.RetrievalFilter = &types.RetrievalFilterMemberIn{Value: types.FilterAttribute{
+			Key: aws.String("x-amz-bedrock-kb-source-uri"), Value: document.NewLazyDocument(s.AllowedSources),
+		}}
 		return &types.RetrievalFilterMemberAndAll{Value: []types.RetrievalFilter{access, scope}}
 	}
 	return access

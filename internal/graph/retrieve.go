@@ -17,6 +17,8 @@ type SourceRef struct {
 }
 
 type Evidence struct {
+	SubjectID    string `json:"-"`
+	ObjectID     string `json:"-"`
 	Subject      string `json:"subject"`
 	Predicate    string `json:"predicate"`
 	Object       string `json:"object"`
@@ -28,6 +30,8 @@ type Evidence struct {
 
 type evidenceRow struct {
 	Evidence
+	SubjectKey        string `json:"subject_id"`
+	ObjectKey         string `json:"object_id"`
 	Unrestricted      *bool  `json:"unrestricted"`
 	AllowedGroupsJSON string `json:"allowed_groups_json"`
 }
@@ -35,7 +39,8 @@ type evidenceRow struct {
 const lookupQuery = `MATCH (d:Document {id: $source})-[:HAS_SNAPSHOT]->(v:Snapshot)-[:ASSERTS]->(c:Claim)
 WHERE v.id = d.active_snapshot AND v.source_version = $version
 MATCH (s:Entity)-[:SUBJECT_OF]->(c)-[:OBJECT]->(o:Entity)
-RETURN s.name AS subject, c.predicate AS predicate, o.name AS object,
+RETURN s.id AS subject_id, o.id AS object_id,
+       s.name AS subject, c.predicate AS predicate, o.name AS object,
        c.quote AS quote, v.source_uri AS source, v.source_version AS version,
        c.review_status AS review_status, v.unrestricted AS unrestricted,
        v.allowed_groups_json AS allowed_groups_json
@@ -79,6 +84,8 @@ func Lookup(ctx context.Context, client QueryClient, sources []SourceRef, groups
 			if !row.permitted(groups) {
 				continue
 			}
+			row.Evidence.SubjectID = row.SubjectKey
+			row.Evidence.ObjectID = row.ObjectKey
 			evidence = append(evidence, row.Evidence)
 		}
 	}
