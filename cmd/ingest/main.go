@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"slices"
 	"strings"
 	"time"
 
@@ -27,7 +28,7 @@ func main() {
 }
 func run() error {
 	bucket := flag.String("bucket", "", "Source S3 bucket")
-	key := flag.String("key", "", "Source Markdown or text object key")
+	key := flag.String("key", "", "Source Markdown, text, or CSV object key")
 	endpoint := flag.String("endpoint", "", "Neptune HTTPS endpoint")
 	model := flag.String("model", "", "Bedrock model or inference profile ID")
 	guardrail := flag.String("guardrail", "", "Guardrail ID")
@@ -40,8 +41,8 @@ func run() error {
 	}
 
 	extension := strings.ToLower(path.Ext(*key))
-	if extension != ".md" && extension != ".txt" {
-		return fmt.Errorf("key must identify a Markdown or text document")
+	if !slices.Contains([]string{".txt", ".md", ".csv"}, extension) {
+		return fmt.Errorf("key must identify a Markdown, text, or CSV document")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
