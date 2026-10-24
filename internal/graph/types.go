@@ -1,6 +1,7 @@
 package graph
 
 type Entity struct {
+	ID   string `json:"id,omitempty"`
 	Name string `json:"name"`
 	Type string `json:"type"`
 }

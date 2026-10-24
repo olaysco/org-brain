@@ -22,7 +22,11 @@ func digest(value any) string {
 	return hex.EncodeToString(hash[:])
 }
 func entityID(entity Entity) string {
-	return digest([]string{entity.Type, strings.ToLower(strings.Join(strings.Fields(entity.Name), " "))})
+	identity := entity.ID
+	if identity == "" {
+		identity = entity.Name
+	}
+	return digest([]string{strings.ToLower(entity.Type), strings.ToLower(strings.Join(strings.Fields(identity), " "))})
 }
 
 // Old snapshots remain stored. Readers must select the document's active snapshot.

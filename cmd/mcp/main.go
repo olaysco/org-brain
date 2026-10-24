@@ -34,23 +34,13 @@ func run() error {
 	graphEndpoint := flag.String("graph-endpoint", "", "Neptune HTTPS endpoint")
 	guardrail := flag.String("guardrail", "", "Guardrail ID")
 	version := flag.String("guardrail-version", "2", "Numbered Guardrail version")
-	group := flag.String("group", "sales", "Fixed demo group")
-	source := flag.String("source", "", "Comma-separated allowed S3 source URIs")
+	group := flag.String("group", "", "Access group; empty permits only unrestricted documents")
 	address := flag.String("listen", "127.0.0.1:8080", "Local HTTP address")
 	flag.Parse()
-	for name, value := range map[string]string{"kb": *kb, "graph-endpoint": *graphEndpoint, "guardrail": *guardrail, "source": *source} {
+	for name, value := range map[string]string{"kb": *kb, "graph-endpoint": *graphEndpoint, "guardrail": *guardrail} {
 		if strings.TrimSpace(value) == "" {
 			return fmt.Errorf("%s is required", name)
 		}
-	}
-
-	allowedSources := make([]string, 0)
-	for _, uri := range strings.Split(*source, ",") {
-		uri = strings.TrimSpace(uri)
-		if !strings.HasPrefix(uri, "s3://") {
-			return fmt.Errorf("source must contain S3 URIs separated by commas")
-		}
-		allowedSources = append(allowedSources, uri)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -64,7 +54,7 @@ func run() error {
 		Retriever:       bedrockagentruntime.NewFromConfig(cfg),
 		Guardrails:      ai.Client{Runtime: bedrockruntime.NewFromConfig(cfg), GuardrailID: *guardrail, GuardrailVersion: *version},
 		Graph:           neptunedata.NewFromConfig(cfg, func(o *neptunedata.Options) { o.BaseEndpoint = aws.String(*graphEndpoint) }),
-		KnowledgeBaseID: *kb, Groups: []string{strings.TrimSpace(*group)}, AllowedSources: allowedSources, SearchType: types.SearchTypeSemantic,
+		KnowledgeBaseID: *kb, Groups: []string{strings.TrimSpace(*group)}, SearchType: types.SearchTypeSemantic,
 	}
 	server := &http.Server{Addr: *address, Handler: mcpserver.Handler(service, 40), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 75 * time.Second, IdleTimeout: 60 * time.Second}
 
@@ -74,7 +64,7 @@ func run() error {
 		defer cancel()
 		_ = server.Shutdown(shutdown)
 	}()
-	log.Printf("MCP demo listening at http://%s/mcp; fixed source list and group, 40 searches", *address)
+	log.Printf("MCP demo listening at http://%s/mcp; fixed group, 40 searches", *address)
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}

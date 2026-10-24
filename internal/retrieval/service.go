@@ -108,7 +108,7 @@ func (s Service) Search(ctx context.Context, query string) (Evidence, error) {
 		if err != nil {
 			return Evidence{}, err
 		}
-		evidence.GraphScope = "Related evidence from active permitted sources, within three relationship steps of retrieved claims. Results do not establish complete shipment coverage or current operating status."
+		evidence.GraphScope = "Related evidence from active permitted sources, within three relationship steps of retrieved claims. Results do not establish complete coverage or current source status."
 	}
 	data, err := json.Marshal(evidence)
 	if err != nil {

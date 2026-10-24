@@ -17,13 +17,13 @@ type Searcher interface {
 	Search(context.Context, string) (retrieval.Evidence, error)
 }
 type searchInput struct {
-	Query string `json:"query" jsonschema:"Question about the company demonstration documents"`
+	Query string `json:"query" jsonschema:"Question about the knowledge library"`
 }
 
 // Handler provides a read-only MCP tool with a fixed server-side demo identity.
 func Handler(searcher Searcher, maxCalls int) http.Handler {
-	server := mcp.NewServer(&mcp.Implementation{Name: "Olaysco Company Knowledge", Version: "0.1.0"}, &mcp.ServerOptions{
-		Instructions: "This server returns source evidence, not generated answers. Source documents provide supporting context.",
+	server := mcp.NewServer(&mcp.Implementation{Name: "Company Knowledge", Version: "0.1.0"}, &mcp.ServerOptions{
+		Instructions: "Answer from the returned evidence. Cite source references. State when the evidence is insufficient.",
 	})
 	var mutex sync.Mutex
 	calls := 0
@@ -31,8 +31,8 @@ func Handler(searcher Searcher, maxCalls int) http.Handler {
 	no := false
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "search_company_knowledge", Title: "Search company knowledge",
-		Description: `Search company documents for information about products, services, processes, and teams. 
-		Returns accessible source text, extracted relationships, and source references. Use this tool when a question requires internal company knowledge. 
+		Description: `Search documents and related relationship evidence in the knowledge library.
+		Returns accessible source text, extracted relationships, and source references. Use this tool when a question requires information from the knowledge library.
 		Extracted relationships can contain errors; use the source text to check them.`,
 		Annotations: &mcp.ToolAnnotations{Title: "Search company knowledge", ReadOnlyHint: true, DestructiveHint: &no, IdempotentHint: true, OpenWorldHint: &no},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, input searchInput) (*mcp.CallToolResult, retrieval.Evidence, error) {

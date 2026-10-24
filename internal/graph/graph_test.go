@@ -22,8 +22,9 @@ func TestDecodeExtraction(t *testing.T) {
 		{"missing", `{}`, false}, {"null", `{"claims":null}`, false},
 		{"unknown field", strings.Replace(validExtraction, `"quote":`, `"extra":true,"quote":`, 1), false},
 		{"fabricated quote", strings.Replace(validExtraction, "The Enterprise plan includes single sign-on.", "An unsupported claim.", 1), false},
-		{"unknown predicate", strings.Replace(validExtraction, "INCLUDES", "EXECUTE", 1), false},
-		{"trailing object", validExtraction + `{}`, false}, {"markdown", "```json\n" + validExtraction + "\n```", false},
+		{"source-specific predicate", strings.Replace(validExtraction, "INCLUDES", "OFFERS", 1), true},
+		{"empty predicate", strings.Replace(validExtraction, "INCLUDES", "", 1), false},
+		{"trailing object", validExtraction + `{}`, false}, {"markdown", "```json\n" + validExtraction + "\n```", true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
