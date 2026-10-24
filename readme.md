@@ -5,6 +5,10 @@ Give AI access to company knowledge while the company controls access permission
 This system provides a shared knowledge layer between company data and AI applications.
 It combines GraphRAG, authorization, and configurable Guardrails, then exposes permitted evidence through the Model Context Protocol (MCP).
 
+## Architecture
+
+![AWS architecture for OrgBrain](docs/architecture.png)
+
 ## Beyond semantic search
 
 Vector search works well for finding text that is similar in meaning to a question.
@@ -29,9 +33,7 @@ MCP makes this knowledge layer available to compatible AI applications through o
 A company can change its client model or chat interface while it retains its knowledge store, source evidence, and access rules.
 The current ingestion and retrieval components use AWS services.
 
-## Architecture
-
-![AWS architecture for OrgBrain](docs/architecture.png)
+## Knowledge workflow
 
 The admin interface uploads CSV, Markdown, or text files to S3 with access metadata.
 Administrators can preview documents, assign access groups, and start synchronization from one screen.

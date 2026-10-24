@@ -1,0 +1,7 @@
+dataset/*
+docs/*
+!docs/architecture.png
+!docs/architecture.svg
+!docs/claude.png
+!docs/admin.png
+!docs/setup.md

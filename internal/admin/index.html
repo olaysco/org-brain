@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+ <meta charset="utf-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <title>Documents · Company Knowledge</title>
+ <link rel="stylesheet" href="/style.css">
+ <script defer src="/app.js"></script>
+</head>
+<body>
+<aside class="sidebar">
+ <a class="brand" href="/" aria-label="Company Knowledge home">Company Knowledge</a>
+ <div class="nav-label">Administration</div>
+ <a class="nav-item active" href="/" aria-current="page">Documents</a>
+ <div class="sidebar-bottom">System admin</div>
+</aside>
+<main>
+ <header class="topbar">Company knowledge <span class="slash">/</span> Documents</header>
+ <div class="content">
+  <div class="page-heading"><h1>Documents</h1><button id="sync" class="button primary">Sync</button></div>
+  <div id="notice" class="notice" role="status" hidden></div>
+  <section class="summary" aria-label="Document status">
+   <div class="summary-item"><span>Documents</span><strong id="total">—</strong></div>
+   <div class="summary-item"><span>Restricted</span><strong id="restricted">—</strong></div>
+   <div class="summary-item sync-summary"><span>Sync status</span><strong id="sync-label" class="status-idle">Not run</strong><span id="sync-time" class="summary-note"></span></div>
+  </section>
+  <section id="sync-progress" class="sync-progress" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span id="sync-message">Starting synchronization…</span></section>
+  <div class="workspace-grid">
+   <aside class="upload-column">
+    <section class="panel upload-panel" aria-labelledby="upload-heading">
+     <div class="panel-header"><h2 id="upload-heading">Upload document</h2></div>
+     <form id="upload-form">
+      <label class="field-label" for="file">File</label>
+      <input id="file" name="file" type="file" accept=".csv,.md,.txt" required aria-describedby="file-help">
+      <p id="file-help" class="field-help">CSV, Markdown, or text. Maximum 8 MB.</p>
+      <label class="field-label" for="owner">Owner</label>
+      <input id="owner" name="owner" type="text" placeholder="Document owner" required maxlength="100">
+      <label class="field-label" for="groups">Access groups</label>
+      <input id="groups" name="groups" type="text" placeholder="group-a, group-b" required maxlength="300" aria-describedby="groups-help">
+      <p id="groups-help" class="field-help">Separate groups with commas.</p>
+      <label class="checkbox"><input id="unrestricted" name="unrestricted" type="checkbox"><span>All company groups</span></label>
+      <button id="upload" type="submit" class="button primary upload-button">Upload</button>
+     </form>
+    </section>
+   </aside>
+   <section class="panel library-panel" aria-labelledby="documents-heading">
+    <div class="panel-header"><h2 id="documents-heading">Documents <span id="count" class="count">0</span></h2><button id="refresh" class="button secondary" aria-label="Refresh documents">Refresh</button></div>
+    <div class="search-wrap"><label class="sr-only" for="search">Search documents</label><input id="search" type="search" placeholder="Search documents…"></div>
+    <div class="table-wrap"><table><thead><tr><th>Document</th><th>Owner</th><th>Access groups</th><th>Updated</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="documents"></tbody></table></div>
+    <div id="library-state" class="library-state" role="status">Loading documents…</div>
+   </section>
+  </div>
+ </div>
+</main>
+<dialog id="preview"><div class="preview-heading"><h2 id="preview-title">Document</h2><button id="close-preview" class="button secondary" aria-label="Close document">Close</button></div><p id="preview-path" class="preview-path"></p><pre id="preview-text">Loading…</pre><p class="preview-note">Preview shows up to 128 KB.</p></dialog>
+</body>
+</html>
