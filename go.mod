@@ -1,4 +1,4 @@
-module github.com/olaysco/org-brain-aws
+module github.com/olaysco/org-brain
 
 go 1.25.1
 

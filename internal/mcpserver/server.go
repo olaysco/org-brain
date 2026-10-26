@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/olaysco/org-brain-aws/internal/retrieval"
+	"github.com/olaysco/org-brain/internal/retrieval"
 )
 
 type Searcher interface {

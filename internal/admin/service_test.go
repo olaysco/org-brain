@@ -15,7 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockagent"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/olaysco/org-brain-aws/internal/graph"
+	"github.com/olaysco/org-brain/internal/graph"
 )
 
 func TestAWSUploadAndSync(t *testing.T) {

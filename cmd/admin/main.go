@@ -19,9 +19,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
 	"github.com/aws/aws-sdk-go-v2/service/neptunedata"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/olaysco/org-brain-aws/internal/admin"
-	"github.com/olaysco/org-brain-aws/internal/ai"
-	"github.com/olaysco/org-brain-aws/internal/graph"
+	"github.com/olaysco/org-brain/internal/admin"
+	"github.com/olaysco/org-brain/internal/ai"
+	"github.com/olaysco/org-brain/internal/graph"
 )
 
 func main() {

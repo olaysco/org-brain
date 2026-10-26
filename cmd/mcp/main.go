@@ -18,9 +18,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/bedrockagentruntime/types"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
 	"github.com/aws/aws-sdk-go-v2/service/neptunedata"
-	"github.com/olaysco/org-brain-aws/internal/ai"
-	"github.com/olaysco/org-brain-aws/internal/mcpserver"
-	"github.com/olaysco/org-brain-aws/internal/retrieval"
+	"github.com/olaysco/org-brain/internal/ai"
+	"github.com/olaysco/org-brain/internal/mcpserver"
+	"github.com/olaysco/org-brain/internal/retrieval"
 )
 
 func main() {

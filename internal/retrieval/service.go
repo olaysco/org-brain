@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/bedrockagentruntime/document"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockagentruntime/types"
 	runtimeTypes "github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types"
-	"github.com/olaysco/org-brain-aws/internal/graph"
+	"github.com/olaysco/org-brain/internal/graph"
 )
 
 type Retriever interface {

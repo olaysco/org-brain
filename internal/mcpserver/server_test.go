@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/olaysco/org-brain-aws/internal/graph"
-	"github.com/olaysco/org-brain-aws/internal/retrieval"
+	"github.com/olaysco/org-brain/internal/graph"
+	"github.com/olaysco/org-brain/internal/retrieval"
 )
 
 type demoSearch struct{ calls int }
